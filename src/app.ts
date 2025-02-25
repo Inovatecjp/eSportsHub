@@ -1,6 +1,7 @@
 import HttpError from './utils/customErrors/httpError';
 import { IHttpNext, IHttpRequest, IHttpResponse } from './interfaces/httpInterface';
 import bodyParser from 'body-parser';
+import session from 'express-session';
 import cookieSession from 'cookie-session';
 import cors, { CorsOptions } from 'cors'
 import express, { Application, Router } from 'express';
@@ -24,28 +25,25 @@ const corsOptions: CorsOptions = {
   
   credentials: true
 };
-
 function useSession(app: Application) {
     if (process.env.AUTH_STRATEGY !== 'session') {
-        return
+      return;
     }
-    if (process.env.PROJETO_FASE === 'development') {
-        app.use(cookieSession({
-            secret: process.env.SESSION_SECRET || 'HESTIA',
-            name: 'authSession',
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: true
-        }))
-    }
-    if (process.env.PROJETO_FASE === 'production') {
-        app.use(cookieSession({
-            secret: process.env.SESSION_SECRET || 'HESTIA',
-            name: 'authSession',
-            maxAge: 24 * 60 * 60 * 1000,
-            secure: true
-        }))
-    }
-}
+  
+    const isProduction = process.env.PROJETO_FASE === 'production';
+  
+    app.use(
+      session({
+        secret: process.env.SESSION_SECRET || 'HESTIA',
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+          maxAge: 24 * 60 * 60 * 1000, // 1 dia
+          secure: isProduction, // true em produção, false em desenvolvimento
+        },
+      })
+    );
+  }
 
 class App {
     public app: Application;
@@ -85,7 +83,7 @@ class App {
     }
 
     private routes() {
-        this.app.use("/auth", AutenticationRouter);    
+        this.app.use("/v1/auth", AutenticationRouter);    
         // ProfileRouter.registerRoutes("/profile", this.app.router);
         // GrantsRouter.registerRoutes("/grants", this.app.router);
     }
